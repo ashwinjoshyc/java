@@ -1,0 +1,82 @@
+# Load the dataset
+UScereal <- read.csv("path/to/UScereal.csv")
+
+# Find the maximum protein value for each Manufacturer
+max_protein <- aggregate(protein ~ mir, data = UScereal, FUN = max)
+print(max_protein)
+
+
+
+_________________________________________________________________________
+# Investigate missing/NA values
+missing_values <- colSums(is.na(UScereal))
+print(missing_values)
+
+# Replace missing values based on distribution
+# For simplicity, you can use mean for normal distribution, min for left skew, max for right skew.
+
+# Summary statistics after handling missing data
+summary_stats <- summary(UScereal[, c("calories", "carbo", "protein", "sugars", "fat", "sodium", "potass", "fiber")])
+print(summary_stats)
+____________________________________________________________
+# Install ggplot2 if not already installed
+# install.packages("ggplot2")
+
+# Load ggplot2
+library(ggplot2)
+
+# 1. Analyze the spread of the dataset for Manufacturer and Fiber
+ggplot(UScereal, aes(x = mir, y = fiber)) +
+  geom_boxplot() +
+  labs(title = "Spread of Fiber for Each Manufacturer")
+
+# 2. Create a plot to find outliers on calories for each shelf
+ggplot(UScereal, aes(x = shelf, y = calories)) +
+  geom_boxplot() +
+  labs(title = "Outliers on Calories for Each Shelf")
+
+# 3. Create a plot to explore all numeric variables
+pairs(UScereal[, c("calories", "carbo", "protein", "sugars", "fat", "sodium", "potass", "fiber")])
+____________________________________________________________________
+# 1. Identify the top-four mean variables and create Greater Mean Four
+greater_mean_vars <- colMeans(UScereal[, c("calories", "carbo", "protein", "sugars", "fat", "sodium", "potass", "fiber")], na.rm = TRUE) %>%
+  sort(decreasing = TRUE) %>%
+  names() %>%
+  head(4)
+
+greater_mean_four <- UScereal[, c("mir", greater_mean_vars)]
+
+# 2. Find the strength of the relationship and plot a simple linear regression model
+cor_matrix <- cor(greater_mean_four[, -1], use = "complete.obs")
+print(cor_matrix)
+
+# Select strongly positively correlated variables
+strong_corr_vars <- which(cor_matrix > 0.6 & cor_matrix < 1, arr.ind = TRUE)
+strong_corr_vars <- unique(c(strong_corr_vars[, 1], strong_corr_vars[, 2]))
+
+# Create a simple linear regression model
+model <- lm(greater_mean_four[, "protein"] ~ greater_mean_four[, strong_corr_vars])
+summary(model)
+
+# Plot the regression model
+plot(greater_mean_four[, strong_corr_vars], greater_mean_four[, "protein"])
+abline(model, col = "red")
+
+# 4. Show prediction before and after removing outliers
+# For simplicity, you can use boxplot and remove outliers using quantiles
+before_outliers <- predict(model, newdata = greater_mean_four)
+boxplot(before_outliers, main = "Before Removing Outliers", col = "blue")
+
+outliers <- which(model$residuals > quantile(model$residuals, 0.95) | model$residuals < quantile(model$residuals, 0.05))
+greater_mean_four_no_outliers <- greater_mean_four[-outliers, ]
+
+after_outliers <- predict(model, newdata = greater_mean_four_no_outliers)
+boxplot(after_outliers, main = "After Removing Outliers", col = "green")
+_______________________________________________________________________
+RS - Conclusion
+
+The analysis provides insights into the maximum protein values for each manufacturer.
+Missing values were handled based on the distribution of data, ensuring a more accurate summary statistics calculation.
+Exploratory analysis using ggplot2 revealed the spread of fiber for each manufacturer and identified outliers in calories for each shelf.
+The model building process identified the top four mean variables, explored their relationship, and created a simple linear regression model.
+Prediction before and after removing outliers helps to assess the model's robustness and reliability.
